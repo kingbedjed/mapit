@@ -1,0 +1,16 @@
+# MapIt static globe — served on 127.0.0.1:8005, proxied by nginx at /mapit.
+# Install (user service): cp to ~/.config/systemd/user/ ; systemctl --user
+# enable --now mapit.service   (linger is already on for jed)
+[Unit]
+Description=MapIt interactive globe (static server, port 8005)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/jed/git/mapit
+ExecStart=/usr/bin/python3 -m http.server 8005 --bind 127.0.0.1 --directory /home/jed/git/mapit/web
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

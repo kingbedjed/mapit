@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive City Map - Upload Your Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Upload Panel */
+        #upload-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            z-index: 100;
+            text-align: center;
+            min-width: 400px;
+            max-width: 600px;
+        }
+
+        #upload-panel.hidden {
+            display: none;
+        }
+
+        #upload-panel h1 {
+            font-size: 28px;
+            color: #4ECDC4;
+            margin-bottom: 20px;
+        }
+
+        #upload-panel p {
+            color: #ccc;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        #drop-zone {
+            border: 3px dashed rgba(78, 205, 196, 0.5);
+            border-radius: 10px;
+            padding: 40px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(78, 205, 196, 0.05);
+        }
+
+        #drop-zone:hover, #drop-zone.drag-over {
+            border-color: #4ECDC4;
+            background: rgba(78, 205, 196, 0.15);
+        }
+
+        #drop-zone-text {
+            font-size: 18px;
+            color: #4ECDC4;
+            margin-bottom: 10px;
+        }
+
+        #drop-zone-subtext {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .button {
+            background: #4ECDC4;
+            color: #0a0e27;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+
+        .button:hover {
+            background: #3db8af;
+            transform: translateY(-2px);
+        }
+
+        .button-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .button-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .csv-format {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .csv-format code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #FFE66D;
+        }
+
+        /* Info Panel */
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 14, 39, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 300px;
+            z-index: 10;
+        }
+
+        #info h1 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #4ECDC4;
+        }
+
+        #info p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 8px;
+        }
+
+        #upload-new-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        /* Hover Info */
+        #hover-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(10, 14, 39, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            z-index: 10;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #hover-info.visible {
+            display: block;
+        }
+
+        #hover-info h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #FFE66D;
+        }
+
+        #hover-info .field {
+            margin: 8px 0;
+            font-size: 14px;
+            display: flex;
+            align-items: baseline;
+        }
+
+        #hover-info .label {
+            color: #4ECDC4;
+            font-weight: bold;
+            min-width: 120px;
+            text-transform: capitalize;
+        }
+
+        #hover-info .value {
+            color: #fff;
+            flex: 1;
+        }
+
+        /* Loading */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 14, 39, 0.95);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid rgba(78, 205, 196, 0.5);
+            z-index: 100;
+            text-align: center;
+            min-width: 300px;
+            display: none;
+        }
+
+        #loading.visible {
+            display: block;
+        }
+
+        #loading-title {
+            font-size: 24px;
+            color: #4ECDC4;
+            margin-bottom: 15px;
+        }
+
+        #loading-status {
+            font-size: 14px;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+
+        #loading-progress {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .spinner {
+            border: 3px solid rgba(78, 205, 196, 0.3);
+            border-top: 3px solid #4ECDC4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+
+        <!-- Upload Panel -->
+        <div id="upload-panel">
+            <h1>🗺️ Create Your Interactive Map</h1>
+            <p>Upload a CSV file with your city data. First two columns should be <strong>city</strong> and <strong>country</strong>, followed by any custom data you want to display.</p>
+
+            <div id="drop-zone">
+                <div id="drop-zone-text">📂 Drop CSV file here</div>
+                <div id="drop-zone-subtext">or click to browse</div>
+            </div>
+
+            <button class="button" onclick="document.getElementById('file-input').click()">
+                Choose CSV File
+            </button>
+            <button class="button button-secondary" onclick="loadDefaultData()">
+                Use Sample Data
+            </button>
+
+            <input type="file" id="file-input" accept=".csv" />
+
+            <div class="csv-format">
+                <strong>CSV Format:</strong><br>
+                <code>city,country,category,description,...</code><br>
+                <small>Example: New York,USA,Tech Hub,Major center,...</small>
+            </div>
+        </div>
+
+        <!-- Loading Panel -->
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="loading-title">Processing...</div>
+            <div id="loading-status">Loading data...</div>
+            <div id="loading-progress"></div>
+        </div>
+
+        <!-- Info Panel -->
+        <div id="info" style="display: none;">
+            <h1>🗺️ City Map</h1>
+            <p><strong>Controls:</strong></p>
+            <p>• Drag: Rotate globe</p>
+            <p>• Scroll: Zoom in/out</p>
+            <p>• Hover: View city info</p>
+            <p>• Click: Select city</p>
+            <button class="button button-secondary" id="upload-new-btn" onclick="showUploadPanel()">
+                📂 Upload New CSV
+            </button>
+        </div>
+
+        <!-- Hover Info -->
+        <div id="hover-info">
+            <h2 id="city-name">City Name</h2>
+            <div id="city-details"></div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Geocoder } from './geocoder.js';
+
+        let cityData = [];
+        let csvHeaders = [];
+        const geocoder = new Geocoder();
+        let scene, camera, renderer, globe, controls;
+        let cityMarkers = [];
+        let autoRotate = true;
+
+        // UI Elements
+        const uploadPanel = document.getElementById('upload-panel');
+        const loadingPanel = document.getElementById('loading');
+        const infoPanel = document.getElementById('info');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        // Setup file upload handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.csv')) {
+                handleFileUpload(file);
+            } else {
+                alert('Please upload a CSV file');
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileUpload(file);
+            }
+        });
+
+        // Show/hide functions
+        window.showUploadPanel = function() {
+            uploadPanel.classList.remove('hidden');
+            infoPanel.style.display = 'none';
+        };
+
+        function hideUploadPanel() {
+            uploadPanel.classList.add('hidden');
+            infoPanel.style.display = 'block';
+        }
+
+        function showLoading(title, status, progress = '') {
+            loadingPanel.classList.add('visible');
+            document.getElementById('loading-title').textContent = title;
+            document.getElementById('loading-status').textContent = status;
+            document.getElementById('loading-progress').textContent = progress;
+        }
+
+        function hideLoading() {
+            loadingPanel.classList.remove('visible');
+        }
+
+        // Handle file upload
+        async function handleFileUpload(file) {
+            hideUploadPanel();
+            showLoading('📊 Reading CSV', 'Parsing your data...', '');
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                try {
+                    const parsed = parseCSV(text);
+                    csvHeaders = parsed.headers;
+                    const rawData = parsed.data;
+
+                    console.log(`Loaded ${rawData.length} cities from uploaded CSV`);
+                    console.log('Headers:', csvHeaders);
+
+                    await processAndRenderData(rawData);
+                } catch (error) {
+                    console.error('Error processing CSV:', error);
+                    alert(`Error processing CSV: ${error.message}`);
+                    hideLoading();
+                    showUploadPanel();
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Load default sample data
+        window.loadDefaultData = async function() {
+            hideUploadPanel();
+            showLoading('📊 Loading Sample Data', 'Fetching default cities...', '');
+
+            try {
+                const response = await fetch('cities.csv');
+                if (!response.ok) {
+                    throw new Error('Could not load sample data');
+                }
+                const text = await response.text();
+                const parsed = parseCSV(text);
+                csvHeaders = parsed.headers;
+
+                console.log(`Loaded ${parsed.data.length} sample cities`);
+                await processAndRenderData(parsed.data);
+            } catch (error) {
+                console.error('Error loading sample data:', error);
+                alert(`Error loading sample data: ${error.message}`);
+                hideLoading();
+                showUploadPanel();
+            }
+        };
+
+        // Parse CSV
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                return row;
+            });
+
+            return { headers, data };
+        }
+
+        // Geocode and render
+        async function processAndRenderData(rawData) {
+            // Initialize scene if needed
+            if (!scene) {
+                showLoading('🌍 Building Globe', 'Creating 3D scene...', '');
+                await initScene();
+            } else {
+                // Clear existing markers FIRST
+                showLoading('🧹 Clearing Old Data', 'Removing previous markers...', '');
+                clearMarkers();
+            }
+
+            // Geocode cities
+            showLoading('🗺️ Geocoding Cities', 'Converting city names to coordinates...', '');
+
+            const cityCol = csvHeaders[0];
+            const countryCol = csvHeaders[1];
+
+            cityData = await geocoder.geocodeBatch(
+                rawData.map(row => ({
+                    city: row[cityCol],
+                    country: row[countryCol],
+                    ...row
+                })),
+                (current, total, cityName, success) => {
+                    const icon = success ? '✓' : '✗';
+                    showLoading(
+                        '🗺️ Geocoding Cities',
+                        `${icon} ${cityName}`,
+                        `${current} / ${total} cities`
+                    );
+                }
+            );
+
+            // Add new markers
+            showLoading('📍 Adding Cities', 'Placing markers on globe...', '');
+            addCityMarkers();
+
+            hideLoading();
+            console.log(`Map created with ${cityData.length} cities!`);
+        }
+
+        // Clear existing markers and UI
+        function clearMarkers() {
+            console.log(`Clearing ${cityMarkers.length} existing markers...`);
+
+            // Remove all markers from the globe
+            cityMarkers.forEach(marker => {
+                globe.remove(marker);
+                // Dispose of geometry and material to free memory
+                if (marker.geometry) marker.geometry.dispose();
+                if (marker.material) marker.material.dispose();
+            });
+            cityMarkers = [];
+
+            // Hide hover info panel
+            const hoverInfo = document.getElementById('hover-info');
+            if (hoverInfo) {
+                hoverInfo.style.display = 'none';
+            }
+
+            console.log('All markers and visuals cleared');
+        }
+
+        // Initialize 3D scene
+        async function initScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({
+                canvas: document.getElementById('canvas'),
+                antialias: true,
+                alpha: true
+            });
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            camera.position.z = 3;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 3, 5);
+            scene.add(directionalLight);
+
+            // Create Earth
+            const globeRadius = 1;
+            const globeGeometry = new THREE.SphereGeometry(globeRadius, 64, 64);
+
+            const textureLoader = new THREE.TextureLoader();
+            const earthTexture = await new Promise((resolve, reject) => {
+                textureLoader.load(
+                    './textures/earth_atmos_2048.jpg',
+                    resolve,
+                    undefined,
+                    reject
+                );
+            });
+
+            const globeMaterial = new THREE.MeshPhongMaterial({
+                map: earthTexture,
+                shininess: 15,
+                specular: 0x333333
+            });
+
+            globe = new THREE.Mesh(globeGeometry, globeMaterial);
+            scene.add(globe);
+
+            // Atmosphere
+            const atmosphereGeometry = new THREE.SphereGeometry(globeRadius * 1.05, 64, 64);
+            const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                color: 0x4488ff,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.BackSide
+            });
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphere);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 1.5;
+            controls.maxDistance = 10;
+
+            // Mouse interaction
+            setupMouseInteraction();
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                if (autoRotate) {
+                    globe.rotation.y += 0.001;
+                }
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // Add city markers
+        function addCityMarkers() {
+            const globeRadius = 1;
+
+            cityData.forEach((city, index) => {
+                const position = latLonToVector3(city.latitude, city.longitude, globeRadius);
+                const size = getMarkerSize(city);
+                const color = getMarkerColor(city, index);
+
+                const markerGeometry = new THREE.SphereGeometry(size, 16, 16);
+                const markerMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.copy(position);
+                marker.userData = city;
+                marker.userData.originalColor = color;
+                marker.userData.originalSize = size;
+
+                globe.add(marker);
+                cityMarkers.push(marker);
+
+                // Glow ring
+                const ringGeometry = new THREE.RingGeometry(size * 1.5, size * 2, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.position.copy(position);
+                ring.lookAt(0, 0, 0);
+                ring.rotateX(Math.PI);
+                globe.add(ring);
+                cityMarkers.push(ring);  // Track ring too so it gets cleared
+            });
+        }
+
+        // Helper functions
+        function latLonToVector3(lat, lon, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            const x = -radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.cos(phi);
+            const z = radius * Math.sin(phi) * Math.sin(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function getMarkerColor(cityData, index) {
+            if (cityData.category) {
+                const category = cityData.category.toLowerCase();
+                if (category.includes('financial') || category.includes('hub')) return 0xFF6B6B;
+                if (category.includes('tech')) return 0x4ECDC4;
+                if (category.includes('startup')) return 0xFFE66D;
+            }
+            const colors = [0xFF6B6B, 0x4ECDC4, 0xFFE66D, 0x95E1D3, 0xF38181];
+            return colors[index % colors.length];
+        }
+
+        function getMarkerSize(cityData) {
+            if (cityData.category) {
+                const category = cityData.category.toLowerCase();
+                if (category.includes('financial') || category.includes('hub')) return 0.03;
+                if (category.includes('tech')) return 0.025;
+            }
+            return 0.02;
+        }
+
+        // Mouse interaction
+        function setupMouseInteraction() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let hoveredCity = null;
+            let selectedCity = null;
+
+            function onMouseMove(event) {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(cityMarkers, false);
+
+                if (hoveredCity && hoveredCity !== selectedCity) {
+                    hoveredCity.material.color.setHex(hoveredCity.userData.originalColor);
+                    hoveredCity.scale.set(1, 1, 1);
+                }
+
+                // Filter to only objects with originalColor (markers, not rings)
+                const markerIntersects = intersects.filter(i =>
+                    i.object.userData && i.object.userData.originalColor !== undefined
+                );
+
+                if (markerIntersects.length > 0) {
+                    hoveredCity = markerIntersects[0].object;
+                    if (hoveredCity !== selectedCity) {
+                        hoveredCity.material.color.setHex(0xFFFFFF);
+                        hoveredCity.scale.set(1.5, 1.5, 1.5);
+                    }
+                    showCityInfo(hoveredCity.userData);
+                    document.body.style.cursor = 'pointer';
+                } else {
+                    hoveredCity = null;
+                    if (!selectedCity) hideCityInfo();
+                    document.body.style.cursor = 'default';
+                }
+            }
+
+            function onMouseClick(event) {
+                autoRotate = false;
+                if (hoveredCity) {
+                    if (selectedCity) {
+                        selectedCity.material.color.setHex(selectedCity.userData.originalColor);
+                        selectedCity.scale.set(1, 1, 1);
+                    }
+
+                    selectedCity = hoveredCity;
+                    selectedCity.material.color.setHex(0xFF8C00);
+                    selectedCity.scale.set(1.8, 1.8, 1.8);
+                }
+            }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onMouseClick);
+        }
+
+        function showCityInfo(city) {
+            const info = document.getElementById('hover-info');
+            const cityCol = csvHeaders[0];
+
+            document.getElementById('city-name').textContent = city[cityCol];
+
+            const detailsDiv = document.getElementById('city-details');
+            detailsDiv.innerHTML = '';
+
+            csvHeaders.slice(1).forEach(header => {
+                if (header === 'latitude' || header === 'longitude') return;
+
+                const value = city[header];
+                if (value && value !== '') {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'field';
+
+                    const label = document.createElement('span');
+                    label.className = 'label';
+                    label.textContent = header + ':';
+
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'value';
+                    valueSpan.textContent = value;
+
+                    fieldDiv.appendChild(label);
+                    fieldDiv.appendChild(valueSpan);
+                    detailsDiv.appendChild(fieldDiv);
+                }
+            });
+
+            if (city.latitude && city.longitude) {
+                const coordDiv = document.createElement('div');
+                coordDiv.className = 'field';
+                coordDiv.innerHTML = `<span class="label">Coordinates:</span><span class="value">${city.latitude.toFixed(2)}°, ${city.longitude.toFixed(2)}°</span>`;
+                detailsDiv.appendChild(coordDiv);
+            }
+
+            info.classList.add('visible');
+        }
+
+        function hideCityInfo() {
+            document.getElementById('hover-info').classList.remove('visible');
+        }
+
+        console.log('Interactive City Map ready!');
+        console.log('Upload your CSV file to get started.');
+    </script>
+</body>
+</html>
