@@ -1,0 +1,63 @@
+# MapIt — interactive globe for highlighting geographic keypoints
+
+MapIt renders a set of geographic points (locations with labels + metadata) as
+glowing markers on an interactive 3D globe. Use it when you need to **map, plot,
+or visualize places / sites / locations** and hand a person a link they can
+explore.
+
+It is 100% client-side: there is no API to POST to and nothing is stored on the
+server. You build a URL that carries the data in its fragment, and the browser
+renders it. This is intentional — the server just serves static files.
+
+## How to build a map URL
+
+1. Make a payload:
+
+```json
+{
+  "title": "Customer sites",
+  "options": { "marker_color": "#c07b74", "projection": "globe" },
+  "points": [
+    { "lat": 35.99, "lon": -78.90, "label": "Durham HQ", "meta": { "staff": 40 } },
+    { "place": "Tokyo, Japan", "label": "APAC office", "meta": { "region": "APAC" } }
+  ]
+}
+```
+
+- Each point is either `{ "lat": <num>, "lon": <num> }` (renders instantly) or
+  `{ "place": "City, Country" }` / `{ "city": "...", "country": "..." }`
+  (geocoded in the browser via OpenStreetMap — prefer lat/lon when you have it).
+- `label` is the marker name; `meta` is any key/values, shown on hover.
+- `options` is optional. `marker_color` is a hex string.
+
+2. Encode it and append to the base URL:
+
+```
+url = "https://jeddoman.com/mapit/#d=" + base64url( gzip( utf8( json(payload) ) ) )
+```
+
+(strip base64 `=` padding). The `#d=` fragment is never sent to the server.
+
+Python:
+```python
+import gzip, base64, json
+enc = base64.urlsafe_b64encode(gzip.compress(json.dumps(payload).encode())).decode().rstrip("=")
+url = "https://jeddoman.com/mapit/#d=" + enc
+```
+
+A ready-made builder is in the repo: `builders/mapit_url.py`
+(`build_map_url(points, title=..., marker_color=...)`).
+
+## MCP tool
+
+For agents that speak MCP, the same thing is exposed as a tool `create_map`
+(see `mcp/` in the repo): `create_map(points, title="", marker_color=None)`
+returns `{ "map_url": ... }`. It runs locally (stdio), builds the URL, and costs
+the server nothing.
+
+## Notes
+
+- Best for a handful to low-hundreds of keypoints. For very large sets, host a
+  CSV/JSON yourself and pass `?data_url=<url>` (that host must allow CORS).
+- There is no static-image endpoint by design; to embed a picture, open the URL
+  and screenshot it with your own browser/harness.
