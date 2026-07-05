@@ -318,6 +318,9 @@
             <button class="button button-secondary" id="upload-new-btn" onclick="showUploadPanel()">
                 📂 Upload New CSV
             </button>
+            <button class="button button-secondary" id="copy-link-btn" onclick="copyShareLink()">
+                🔗 Copy shareable link
+            </button>
         </div>
 
         <!-- Hover Info -->
@@ -470,6 +473,119 @@
 
             return { headers, data };
         }
+
+        // ---- URL-encoded data (agent-friendly, 100% client-side) ------------
+        // gzip + base64url helpers (match the Python/JS builders in docs/).
+        let mapOptions = {};
+
+        async function gzipToBase64url(str) {
+            const stream = new Blob([str]).stream()
+                .pipeThrough(new CompressionStream('gzip'));
+            const buf = await new Response(stream).arrayBuffer();
+            let bin = '';
+            new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        async function base64urlGzipToString(b64u) {
+            let b64 = b64u.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const stream = new Blob([bytes]).stream()
+                .pipeThrough(new DecompressionStream('gzip'));
+            return await new Response(stream).text();
+        }
+
+        // Convert an agent payload {title, options, points:[...]} into the
+        // internal CSV-shaped model and render it — no server involved.
+        async function renderPayload(payload) {
+            mapOptions = payload.options || {};
+            const pts = payload.points || [];
+
+            // Union of metadata keys across points (kept column-stable).
+            const metaKeys = [];
+            pts.forEach(p => Object.keys(p.meta || {}).forEach(k => {
+                if (!metaKeys.includes(k)) metaKeys.push(k);
+            }));
+            const hasPlaces = pts.some(p => (p.place || p.city) && p.lat === undefined);
+
+            csvHeaders = ['label', ...(hasPlaces ? ['country'] : []), ...metaKeys];
+
+            const rows = pts.map(p => {
+                const row = { label: p.label || p.place || p.city || '' };
+                if (hasPlaces) row.country = p.country || '';
+                Object.assign(row, p.meta || {});
+                if (p.lat !== undefined && p.lon !== undefined) {
+                    row.latitude = Number(p.lat);
+                    row.longitude = Number(p.lon);
+                } else if (p.place || p.city) {
+                    // geocodeBatch reads .city/.country
+                    row.city = p.place || p.city;
+                    row.country = p.country || '';
+                }
+                return row;
+            });
+
+            if (payload.title) {
+                const h = document.querySelector('#info h1, #info-title');
+                if (h) h.textContent = payload.title;
+                document.title = payload.title + ' — MapIt';
+            }
+            hideUploadPanel();
+            await processAndRenderData(rows);
+        }
+
+        // On load: render data passed in the URL, if any. #d= (inline, never
+        // sent to the server) or ?data_url= (browser fetches a CSV/JSON).
+        async function loadFromUrl() {
+            const hash = location.hash || '';
+            const params = new URLSearchParams(location.search);
+            try {
+                if (hash.startsWith('#d=')) {
+                    const json = await base64urlGzipToString(hash.slice(3));
+                    await renderPayload(JSON.parse(json));
+                    return true;
+                }
+                if (params.get('data_url')) {
+                    const url = params.get('data_url');
+                    const text = await (await fetch(url)).text();
+                    if (text.trim().startsWith('{')) {
+                        await renderPayload(JSON.parse(text));
+                    } else {
+                        const parsed = parseCSV(text);
+                        csvHeaders = parsed.headers;
+                        hideUploadPanel();
+                        await processAndRenderData(parsed.data);
+                    }
+                    return true;
+                }
+            } catch (e) {
+                console.error('Failed to load data from URL:', e);
+                alert('Could not read the map data from this link.');
+            }
+            return false;
+        }
+
+        // Encode the current dataset back into a shareable #d= link.
+        window.copyShareLink = async function() {
+            const points = cityData.map(c => {
+                const meta = {};
+                csvHeaders.forEach(h => {
+                    if (['label', 'country', 'city', 'latitude', 'longitude'].includes(h)) return;
+                    if (c[h] !== undefined && c[h] !== '') meta[h] = c[h];
+                });
+                const p = { label: c[csvHeaders[0]] || c.label, meta };
+                if (c.latitude !== undefined) { p.lat = c.latitude; p.lon = c.longitude; }
+                return p;
+            });
+            const payload = { title: document.title.replace(' — MapIt', ''), options: mapOptions, points };
+            const enc = await gzipToBase64url(JSON.stringify(payload));
+            const link = location.origin + location.pathname + '#d=' + enc;
+            try { await navigator.clipboard.writeText(link); alert('Shareable link copied to clipboard.'); }
+            catch (e) { prompt('Shareable link:', link); }
+        };
 
         // Geocode and render
         async function processAndRenderData(rawData) {
@@ -672,6 +788,9 @@
         }
 
         function getMarkerColor(cityData, index) {
+            if (mapOptions.marker_color) {
+                return parseInt(mapOptions.marker_color.replace('#', ''), 16);
+            }
             if (cityData.category) {
                 const category = cityData.category.toLowerCase();
                 if (category.includes('financial') || category.includes('hub')) return 0xFF6B6B;
@@ -794,7 +913,9 @@
         }
 
         console.log('Interactive City Map ready!');
-        console.log('Upload your CSV file to get started.');
+
+        // Auto-load data from the URL if present; else wait for drag-drop.
+        loadFromUrl();
     </script>
 </body>
 </html>
