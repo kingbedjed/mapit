@@ -130,13 +130,10 @@ export class Geocoder {
                     longitude: coords.longitude
                 });
             } else {
-                // Use default coordinates (0, 0) if geocoding fails
-                console.warn(`Warning: Could not geocode ${city.city}, using default coordinates`);
-                results.push({
-                    ...city,
-                    latitude: 0,
-                    longitude: 0
-                });
+                // Geocoding failed — flag it instead of inventing (0, 0), so
+                // the caller can report it rather than drop a pin in the ocean.
+                console.warn(`Could not geocode: ${city.city}`);
+                results.push({ ...city, _geocodeFailed: true });
             }
 
             if (onProgress) onProgress(i + 1, total, city.city, !!coords);

@@ -267,9 +267,18 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Non-blocking notice banner (e.g. "N locations couldn't be found"). */
+        #notice {
+            position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+            max-width: 90%; z-index: 1000; display: none;
+            background: rgba(192, 123, 116, 0.95); color: #fff;
+            padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.9rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
     </style>
 </head>
 <body>
+    <div id="notice"></div>
     <div id="container">
         <canvas id="canvas"></canvas>
 
@@ -406,6 +415,17 @@
             loadingPanel.classList.remove('visible');
         }
 
+        // Brief, non-blocking banner. textContent (not innerHTML) so a hostile
+        // location name can't inject markup.
+        let noticeTimer = null;
+        function showNotice(msg) {
+            const el = document.getElementById('notice');
+            el.textContent = msg;
+            el.style.display = 'block';
+            clearTimeout(noticeTimer);
+            noticeTimer = setTimeout(() => { el.style.display = 'none'; }, 8000);
+        }
+
         // Handle file upload
         async function handleFileUpload(file) {
             hideUploadPanel();
@@ -457,13 +477,36 @@
             }
         };
 
-        // Parse CSV
+        // Split one CSV line into fields, honoring double-quoted cells that
+        // may themselves contain commas (and "" as an escaped quote).
+        function parseCSVLine(line) {
+            const values = [];
+            let cur = '', inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQuotes) {
+                    if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }  // escaped ""
+                    else if (ch === '"') inQuotes = false;                        // closing quote
+                    else cur += ch;
+                } else if (ch === '"') {
+                    inQuotes = true;                                             // opening quote
+                } else if (ch === ',') {
+                    values.push(cur); cur = '';                                  // real separator
+                } else {
+                    cur += ch;
+                }
+            }
+            values.push(cur);
+            return values.map(v => v.trim());
+        }
+
         function parseCSV(text) {
-            const lines = text.trim().split('\n');
-            const headers = lines[0].split(',').map(h => h.trim());
+            // Split on newlines but ignore blank lines and Windows \r.
+            const lines = text.replace(/\r/g, '').trim().split('\n').filter(l => l.length);
+            const headers = parseCSVLine(lines[0]);
 
             const data = lines.slice(1).map(line => {
-                const values = line.split(',').map(v => v.trim());
+                const values = parseCSVLine(line);
                 const row = {};
                 headers.forEach((header, index) => {
                     row[header] = values[index] || '';
@@ -621,12 +664,22 @@
                 }
             );
 
+            // Set aside points we couldn't locate — don't pin them in the ocean.
+            const failed = cityData.filter(c => c._geocodeFailed);
+            cityData = cityData.filter(c => !c._geocodeFailed);
+
             // Add new markers
             showLoading('📍 Adding Cities', 'Placing markers on globe...', '');
             addCityMarkers();
+            frameOnData();
 
             hideLoading();
             console.log(`Map created with ${cityData.length} cities!`);
+
+            if (failed.length) {
+                const names = failed.map(c => c[csvHeaders[0]] || c.city || '?').join(', ');
+                showNotice(`${failed.length} location(s) couldn't be found and were skipped: ${names}`);
+            }
         }
 
         // Clear existing markers and UI
@@ -734,6 +787,22 @@
                 renderer.render(scene, camera);
             }
             animate();
+        }
+
+        // Turn the globe so the data faces the viewer on load, instead of
+        // hoping the markers happen to be on the near side.
+        function frameOnData() {
+            if (!globe || !cityData.length) return;
+            // Average the points' positions to get their "center of mass"
+            // direction on the sphere.
+            const mean = new THREE.Vector3();
+            cityData.forEach(c => mean.add(latLonToVector3(c.latitude, c.longitude, 1)));
+            if (mean.length() < 1e-3) return;  // points are spread all around — nothing to frame
+            mean.normalize();
+            // Rotate the globe so that direction points at the camera (+z).
+            globe.quaternion.setFromUnitVectors(mean, new THREE.Vector3(0, 0, 1));
+            // Let a caller (e.g. an agent) freeze the spin for a stable shot.
+            if (mapOptions.auto_rotate === false) autoRotate = false;
         }
 
         // Add city markers

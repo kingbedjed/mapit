@@ -22,6 +22,7 @@ def create_map(
     points: list[dict[str, Any]],
     title: str = "",
     marker_color: str = "",
+    auto_rotate: bool = True,
 ) -> dict:
     """Create an interactive 3D-globe map highlighting geographic keypoints.
 
@@ -38,11 +39,14 @@ def create_map(
     key/value pairs shown when the user hovers the marker.
     title: optional map title.
     marker_color: optional hex color for the markers, e.g. "#c07b74".
+    auto_rotate: leave True for a spinning globe; set False for a still,
+        framed view (better if you're going to screenshot it).
     """
     url = build_map_url(
         points,
         title=title or None,
         marker_color=marker_color or None,
+        auto_rotate=auto_rotate,
     )
     return {"map_url": url, "point_count": len(points)}
 

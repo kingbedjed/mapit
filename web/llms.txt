@@ -28,7 +28,11 @@ renders it. This is intentional — the server just serves static files.
   `{ "place": "City, Country" }` / `{ "city": "...", "country": "..." }`
   (geocoded in the browser via OpenStreetMap — prefer lat/lon when you have it).
 - `label` is the marker name; `meta` is any key/values, shown on hover.
-- `options` is optional. `marker_color` is a hex string.
+- `options` is optional. `marker_color` is a hex string. `auto_rotate: false`
+  freezes the globe framed on your data (best if you'll screenshot it; default
+  is a spinning globe).
+- Points that can't be geocoded are skipped and reported in-app, not silently
+  placed at (0,0).
 
 2. Encode it and append to the base URL:
 

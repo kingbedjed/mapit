@@ -12,7 +12,7 @@ BASE_URL = "https://jeddoman.com/mapit/"
 
 
 def build_map_url(points, title=None, marker_color=None, projection="globe",
-                  base_url=BASE_URL):
+                  auto_rotate=True, base_url=BASE_URL):
     """Return a shareable MapIt URL rendering `points`.
 
     points: list of dicts, each either
@@ -24,6 +24,8 @@ def build_map_url(points, title=None, marker_color=None, projection="globe",
     options = {"projection": projection}
     if marker_color:
         options["marker_color"] = marker_color
+    if not auto_rotate:  # default is spin; only record when the caller wants it still
+        options["auto_rotate"] = False
 
     payload = {"points": points, "options": options}
     if title:
