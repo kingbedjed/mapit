@@ -1,11 +1,11 @@
-city,country,category,description,population,founded
-New York,USA,Financial Hub,Major financial center and tech hub,8.3M,1624
-San Francisco,USA,Tech Center,Silicon Valley technology hub,875K,1776
-London,UK,Financial Hub,European financial center,9.0M,47 AD
-Tokyo,Japan,Tech Center,Innovation and robotics center,14.0M,1457
-Berlin,Germany,Startup Hub,Growing startup ecosystem,3.6M,1237
-Singapore,Singapore,Financial Hub,Asia-Pacific business hub,5.7M,1819
-Toronto,Canada,Tech Center,Growing AI and fintech center,2.9M,1793
-Sydney,Australia,Business Center,Pacific business center,5.3M,1788
-Tel Aviv,Israel,Startup Hub,Cybersecurity and innovation,460K,1909
-Seattle,USA,Tech Center,Cloud computing and tech giants,750K,1851
+city,country,category,description,population,founded,latitude,longitude
+New York,USA,Financial Hub,Major financial center and tech hub,8.3M,1624,40.7128,-74.0060
+San Francisco,USA,Tech Center,Silicon Valley technology hub,875K,1776,37.7749,-122.4194
+London,UK,Financial Hub,European financial center,9.0M,47 AD,51.5074,-0.1278
+Tokyo,Japan,Tech Center,Innovation and robotics center,14.0M,1457,35.6762,139.6503
+Berlin,Germany,Startup Hub,Growing startup ecosystem,3.6M,1237,52.5200,13.4050
+Singapore,Singapore,Financial Hub,Asia-Pacific business hub,5.7M,1819,1.3521,103.8198
+Toronto,Canada,Tech Center,Growing AI and fintech center,2.9M,1793,43.6532,-79.3832
+Sydney,Australia,Business Center,Pacific business center,5.3M,1788,-33.8688,151.2093
+Tel Aviv,Israel,Startup Hub,Cybersecurity and innovation,460K,1909,32.0853,34.7818
+Seattle,USA,Tech Center,Cloud computing and tech giants,750K,1851,47.6062,-122.3321

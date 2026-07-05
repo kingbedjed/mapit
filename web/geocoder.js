@@ -106,9 +106,16 @@ export class Geocoder {
         for (let i = 0; i < cities.length; i++) {
             const city = cities[i];
 
-            // Skip if already has coordinates
-            if (city.latitude !== undefined && city.longitude !== undefined) {
-                results.push(city);
+            // Skip geocoding if coordinates are already present (e.g. a CSV
+            // with latitude/longitude columns, or agent-supplied lat/lon).
+            // Coerce to Number — CSV values arrive as strings.
+            if (city.latitude !== undefined && city.latitude !== '' &&
+                city.longitude !== undefined && city.longitude !== '') {
+                results.push({
+                    ...city,
+                    latitude: Number(city.latitude),
+                    longitude: Number(city.longitude)
+                });
                 if (onProgress) onProgress(i + 1, total, city.city, true);
                 continue;
             }
