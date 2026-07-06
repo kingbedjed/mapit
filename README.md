@@ -53,6 +53,23 @@ fragment, so there's no API to run.
 Point schema: each is `{lat, lon, label, meta}` (renders instantly) or
 `{place: "City, Country", label, meta}` (geocoded in the browser).
 
+## Tests
+
+The documented example gallery (in `web/llms.txt` / the MCP tool) is the test
+suite — every example is exercised, so a broken or undocumented example fails
+rather than silently shipping. Examples live once in `tests/gallery.py`.
+
+```sh
+python tests/test_gallery_builder.py   # fast: builds + round-trips each example,
+                                       # and checks each is documented (no deps)
+python tests/test_gallery_render.py    # renders each in a headless browser
+                                       # (needs playwright + internet; auto-skips
+                                       #  if unavailable)
+```
+
+To add a gallery example: add it to `tests/gallery.py` and to the prose gallery
+in `web/llms.txt` — the builder test enforces that both exist.
+
 ## Hosting notes
 - **Earth texture is vendored** (`web/textures/`) rather than hotlinked from
   GitHub raw, so it can't break when that path moves.
