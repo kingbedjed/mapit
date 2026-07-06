@@ -12,20 +12,32 @@ BASE_URL = "https://jeddoman.com/mapit/"
 
 
 def build_map_url(points, title=None, marker_color=None, projection="globe",
-                  auto_rotate=True, base_url=BASE_URL):
+                  auto_rotate=True, connect=False, labels=None, arc_color=None,
+                  base_url=BASE_URL):
     """Return a shareable MapIt URL rendering `points`.
 
     points: list of dicts, each either
         {"lat": <num>, "lon": <num>, "label": <str>, "meta": {...}}   or
         {"place": "City, Country", "label": <str>, "meta": {...}}     or
         {"city": "...", "country": "...", "label": <str>, "meta": {...}}
+      A point may also set "color" (hex) and "size" to style itself.
     title / marker_color / projection: optional map options.
+    auto_rotate: False freezes the framed view (good for screenshots).
+    connect: True draws arcs between consecutive points (a route); arc_color
+        is an optional hex color for them.
+    labels: True/False forces marker labels on/off (default: on for <=15 points).
     """
     options = {"projection": projection}
     if marker_color:
         options["marker_color"] = marker_color
     if not auto_rotate:  # default is spin; only record when the caller wants it still
         options["auto_rotate"] = False
+    if connect:                       # draw arcs between consecutive points
+        options["connect"] = True
+    if arc_color:
+        options["arc_color"] = arc_color
+    if labels is not None:            # None = auto (labels for small sets)
+        options["labels"] = labels
 
     payload = {"points": points, "options": options}
     if title:

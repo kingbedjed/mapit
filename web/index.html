@@ -267,6 +267,16 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Always-on marker labels (rendered as HTML over the 3D canvas). */
+        .map-label {
+            color: #e7e9ec; font-size: 0.72rem; font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            padding: 1px 5px; white-space: nowrap; pointer-events: none;
+            transform: translate(-50%, -140%);
+        }
+        /* The label overlay must not eat mouse events meant for the globe. */
+        #label-layer { pointer-events: none; }
+
         /* Non-blocking notice banner (e.g. "N locations couldn't be found"). */
         #notice {
             position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
@@ -351,13 +361,15 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
         import { Geocoder } from './geocoder.js';
 
         let cityData = [];
         let csvHeaders = [];
         const geocoder = new Geocoder();
-        let scene, camera, renderer, globe, controls;
+        let scene, camera, renderer, globe, controls, labelRenderer;
         let cityMarkers = [];
+        let markerLabels = [];   // CSS2DObjects, tracked for far-side hiding + cleanup
         let autoRotate = true;
 
         // UI Elements
@@ -560,6 +572,8 @@
                 const row = { label: p.label || p.place || p.city || '' };
                 if (hasPlaces) row.country = p.country || '';
                 Object.assign(row, p.meta || {});
+                if (p.color) row.color = p.color;          // per-point marker color
+                if (p.size !== undefined && p.size !== '') row.size = p.size;  // per-point size
                 if (p.lat !== undefined && p.lon !== undefined) {
                     row.latitude = Number(p.lat);
                     row.longitude = Number(p.lon);
@@ -671,6 +685,7 @@
             // Add new markers
             showLoading('📍 Adding Cities', 'Placing markers on globe...', '');
             addCityMarkers();
+            addArcs();
             frameOnData();
 
             hideLoading();
@@ -695,6 +710,10 @@
             });
             cityMarkers = [];
 
+            // Remove label DOM nodes too, so reloading doesn't stack them up.
+            markerLabels.forEach(lbl => { globe.remove(lbl); lbl.element.remove(); });
+            markerLabels = [];
+
             // Hide hover info panel
             const hoverInfo = document.getElementById('hover-info');
             if (hoverInfo) {
@@ -717,6 +736,16 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             camera.position.z = 3;
+
+            // A second renderer that draws HTML labels tracking 3D positions,
+            // layered over (not replacing) the WebGL canvas.
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.id = 'label-layer';
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0';
+            labelRenderer.domElement.style.left = '0';
+            document.getElementById('container').appendChild(labelRenderer.domElement);
 
             // Lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -770,11 +799,12 @@
             // Mouse interaction
             setupMouseInteraction();
 
-            // Window resize
+            // Window resize — keep both renderers in sync with the viewport.
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
+                labelRenderer.setSize(window.innerWidth, window.innerHeight);
             });
 
             // Animation loop
@@ -784,9 +814,35 @@
                     globe.rotation.y += 0.001;
                 }
                 controls.update();
+                updateLabelVisibility();
                 renderer.render(scene, camera);
+                labelRenderer.render(scene, camera);  // draw the HTML labels on top
             }
             animate();
+        }
+
+        // Connect consecutive points with curved lines (a route/relationship),
+        // when options.connect is set. Each arc bows outward from the globe so
+        // it's visible above the surface rather than cutting through it.
+        function addArcs() {
+            if (!mapOptions.connect || cityData.length < 2) return;
+            const color = mapOptions.arc_color
+                ? parseInt(mapOptions.arc_color.replace('#', ''), 16) : 0x7c93b5;
+            for (let i = 0; i < cityData.length - 1; i++) {
+                const a = latLonToVector3(cityData[i].latitude, cityData[i].longitude, 1);
+                const b = latLonToVector3(cityData[i + 1].latitude, cityData[i + 1].longitude, 1);
+                // control point: the midpoint direction, pushed out above the
+                // surface — farther-apart points bow higher.
+                const control = a.clone().add(b).multiplyScalar(0.5).normalize()
+                    .multiplyScalar(1 + a.distanceTo(b) * 0.35);
+                const curve = new THREE.QuadraticBezierCurve3(a, control, b);
+                const geom = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48));
+                const line = new THREE.Line(geom, new THREE.LineBasicMaterial({
+                    color, transparent: true, opacity: 0.7
+                }));
+                globe.add(line);
+                cityMarkers.push(line);  // tracked so clearMarkers() removes it on reload
+            }
         }
 
         // Turn the globe so the data faces the viewer on load, instead of
@@ -803,6 +859,27 @@
             globe.quaternion.setFromUnitVectors(mean, new THREE.Vector3(0, 0, 1));
             // Let a caller (e.g. an agent) freeze the spin for a stable shot.
             if (mapOptions.auto_rotate === false) autoRotate = false;
+        }
+
+        // Show labels when explicitly asked, or by default for a small number
+        // of points (labels on hundreds of markers would be a wall of text).
+        function labelsEnabled() {
+            if (mapOptions.labels === true) return true;
+            if (mapOptions.labels === false) return false;
+            return cityData.length <= 15;
+        }
+
+        // Hide labels on the far side of the globe each frame. A label faces the
+        // camera when the dot product of its direction (from the globe center)
+        // and the camera direction is positive.
+        function updateLabelVisibility() {
+            if (!markerLabels.length) return;
+            const camDir = camera.position.clone().normalize();
+            const wp = new THREE.Vector3();
+            markerLabels.forEach(lbl => {
+                lbl.getWorldPosition(wp);
+                lbl.element.style.opacity = wp.normalize().dot(camDir) > 0.15 ? '1' : '0';
+            });
         }
 
         // Add city markers
@@ -828,6 +905,18 @@
 
                 globe.add(marker);
                 cityMarkers.push(marker);
+
+                // Attach an always-on HTML label (when enabled). It's a child of
+                // the marker, so it moves with the globe automatically.
+                if (labelsEnabled()) {
+                    const div = document.createElement('div');
+                    div.className = 'map-label';
+                    div.textContent = city[csvHeaders[0]] || city.label || '';
+                    const labelObj = new CSS2DObject(div);
+                    labelObj.position.copy(position);
+                    globe.add(labelObj);
+                    markerLabels.push(labelObj);
+                }
 
                 // Glow ring
                 const ringGeometry = new THREE.RingGeometry(size * 1.5, size * 2, 32);
@@ -857,7 +946,10 @@
         }
 
         function getMarkerColor(cityData, index) {
-            if (mapOptions.marker_color) {
+            if (cityData.color) {  // this point's own color wins
+                return parseInt(String(cityData.color).replace('#', ''), 16);
+            }
+            if (mapOptions.marker_color) {  // else a map-wide color
                 return parseInt(mapOptions.marker_color.replace('#', ''), 16);
             }
             if (cityData.category) {
@@ -871,6 +963,9 @@
         }
 
         function getMarkerSize(cityData) {
+            if (cityData.size !== undefined && cityData.size !== '') {
+                return Number(cityData.size);  // this point's own size wins
+            }
             if (cityData.category) {
                 const category = cityData.category.toLowerCase();
                 if (category.includes('financial') || category.includes('hub')) return 0.03;
