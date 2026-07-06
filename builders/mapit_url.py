@@ -20,7 +20,8 @@ def build_map_url(points, title=None, marker_color=None, projection="globe",
         {"lat": <num>, "lon": <num>, "label": <str>, "meta": {...}}   or
         {"place": "City, Country", "label": <str>, "meta": {...}}     or
         {"city": "...", "country": "...", "label": <str>, "meta": {...}}
-      A point may also set "color" (hex) and "size" to style itself.
+      A point may also set "color" (hex), "size", and "images" (a list of
+      https photo URLs, shown as a strip in the tap card).
     title / marker_color / projection: optional map options.
     auto_rotate: False freezes the framed view (good for screenshots).
     connect: True draws arcs between consecutive points (a route); arc_color

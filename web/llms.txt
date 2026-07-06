@@ -28,7 +28,8 @@ renders it. This is intentional — the server just serves static files.
   `{ "place": "City, Country" }` / `{ "city": "...", "country": "..." }`
   (geocoded in the browser via OpenStreetMap — prefer lat/lon when you have it).
 - `label` is the marker name; `meta` is any key/values, shown on hover.
-- A point may also set `color` (hex) and `size` to style itself.
+- A point may also set `color` (hex), `size`, and `images` (a list of public
+  https photo URLs, shown as a swipeable strip in the tap card).
 - `options` is optional. `marker_color` is a hex string (map-wide default).
   `connect: true` draws arcs between consecutive points (a route), with an
   optional `arc_color`. `labels: true|false` forces marker text labels on/off
@@ -110,6 +111,18 @@ create_map(
 )
 ```
 
+Points with photos (image URLs must be public + https):
+```python
+create_map(
+    title="Property tour",
+    points=[
+        {"lat": 37.77, "lon": -122.42, "label": "Loft",
+         "images": ["https://example.com/loft1.jpg", "https://example.com/loft2.jpg"],
+         "meta": {"price": "$2,400/mo"}},
+    ],
+)
+```
+
 Screenshot-ready still map with labels always on:
 ```python
 create_map(
@@ -129,3 +142,6 @@ create_map(
   CSV/JSON yourself and pass `?data_url=<url>` (that host must allow CORS).
 - There is no static-image endpoint by design; to embed a picture, open the URL
   and screenshot it with your own browser/harness.
+- Point `images` must be public `https` URLs the browser can fetch. Local files
+  and non-public links won't load — upload photos to a public host first. MapIt
+  never stores images; it just renders the URLs you give it.

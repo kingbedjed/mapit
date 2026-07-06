@@ -230,6 +230,17 @@
             flex: 1;
         }
 
+        /* Photo strip in the details card: horizontal, swipeable, capped height. */
+        #hover-info .card-images {
+            display: flex; gap: 8px; overflow-x: auto;
+            margin-bottom: 12px; padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+        #hover-info .card-images img {
+            height: 110px; flex: 0 0 auto;
+            border-radius: 8px; object-fit: cover;
+        }
+
         /* On phones, open the details box at the TOP (below the title bar):
            the bottom is where the browser toolbar sits and would clip it. */
         @media (max-width: 640px) {
@@ -608,6 +619,9 @@
                 Object.assign(row, p.meta || {});
                 if (p.color) row.color = p.color;          // per-point marker color
                 if (p.size !== undefined && p.size !== '') row.size = p.size;  // per-point size
+                // photos: accept "images": [url,...] and/or singular "image": url
+                if (p.images) row.images = p.images;
+                if (p.image) row.image = p.image;
                 if (p.lat !== undefined && p.lon !== undefined) {
                     row.latitude = Number(p.lat);
                     row.longitude = Number(p.lon);
@@ -1104,8 +1118,24 @@
             const detailsDiv = document.getElementById('city-details');
             detailsDiv.innerHTML = '';
 
+            // Photos, if any: a swipeable strip of thumbnails loaded from their
+            // (external, https) URLs. A broken/blocked URL quietly removes itself.
+            const imgs = city.images || (city.image ? [city.image] : []);
+            if (imgs.length) {
+                const strip = document.createElement('div');
+                strip.className = 'card-images';
+                imgs.forEach(src => {
+                    const img = document.createElement('img');
+                    img.loading = 'lazy';
+                    img.src = String(src);
+                    img.onerror = () => img.remove();
+                    strip.appendChild(img);
+                });
+                detailsDiv.appendChild(strip);
+            }
+
             csvHeaders.slice(1).forEach(header => {
-                if (header === 'latitude' || header === 'longitude') return;
+                if (['latitude', 'longitude', 'image', 'images'].includes(header)) return;
 
                 const value = city[header];
                 if (value && value !== '') {

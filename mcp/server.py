@@ -40,7 +40,9 @@ def create_map(
         {"place": "City, Country", "label": "<name>", "meta": {...}}
     (geocoded in the browser). "label" is the marker name; "meta" is any
     key/value pairs shown when the user hovers the marker. A point may also
-    set "color" (hex) and "size" to style itself.
+    set "color" (hex), "size", and "images" (a list of public https photo
+    URLs, shown in the tap card). Images must already be hosted at a URL —
+    local files won't work; upload them somewhere public first.
     title: optional map title.
     marker_color: optional default hex color for the markers, e.g. "#c07b74".
     auto_rotate: leave True for a spinning globe; set False for a still,

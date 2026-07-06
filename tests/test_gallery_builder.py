@@ -43,6 +43,8 @@ def test_examples_build_and_roundtrip():
         for src, out in zip(kw["points"], payload["points"]):
             if "color" in src:
                 assert out.get("color") == src["color"], name
+            if "images" in src:
+                assert out.get("images") == src["images"], name
 
 
 def test_examples_are_documented():

@@ -53,6 +53,18 @@ EXAMPLES = [
         },
     },
     {
+        "name": "with_photos",
+        "expect_points": 1,
+        "kwargs": {
+            "title": "Property tour",
+            "points": [
+                {"lat": 37.77, "lon": -122.42, "label": "Loft",
+                 "images": ["https://example.com/loft1.jpg", "https://example.com/loft2.jpg"],
+                 "meta": {"price": "$2,400/mo"}},
+            ],
+        },
+    },
+    {
         "name": "still_labeled",
         "expect_points": 3,
         "kwargs": {
