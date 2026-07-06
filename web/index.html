@@ -1035,22 +1035,52 @@
                 }
             }
 
-            function onMouseClick(event) {
-                autoRotate = false;
-                if (hoveredCity) {
-                    if (selectedCity) {
-                        selectedCity.material.color.setHex(selectedCity.userData.originalColor);
-                        selectedCity.scale.set(1, 1, 1);
-                    }
+            // Hit-test for a marker at a screen position (works for tap or click,
+            // so it doesn't depend on hover — which touch screens don't do).
+            function pickMarkerAt(clientX, clientY) {
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hit = raycaster.intersectObjects(cityMarkers, false)
+                    .filter(i => i.object.userData && i.object.userData.originalColor !== undefined);
+                return hit.length ? hit[0].object : null;
+            }
 
-                    selectedCity = hoveredCity;
-                    selectedCity.material.color.setHex(0xFF8C00);
-                    selectedCity.scale.set(1.8, 1.8, 1.8);
+            function selectMarker(marker) {
+                if (selectedCity && selectedCity !== marker) {
+                    selectedCity.material.color.setHex(selectedCity.userData.originalColor);
+                    selectedCity.scale.set(1, 1, 1);
+                }
+                if (marker) {
+                    selectedCity = marker;
+                    marker.material.color.setHex(0xFF8C00);
+                    marker.scale.set(1.8, 1.8, 1.8);
+                    showCityInfo(marker.userData);   // show the details panel (this is how mobile "sees" a point)
+                } else {
+                    selectedCity = null;
+                    hideCityInfo();
                 }
             }
 
+            function onTap(clientX, clientY) {
+                autoRotate = false;
+                selectMarker(pickMarkerAt(clientX, clientY));
+            }
+
             window.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('click', onMouseClick);
+            window.addEventListener('click', (e) => onTap(e.clientX, e.clientY));
+            // Touch: fire on the tap that ends a touch (guard against it being a drag).
+            let touchStart = null;
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: true });
+            renderer.domElement.addEventListener('touchend', (e) => {
+                if (!touchStart) return;
+                const t = e.changedTouches[0];
+                const moved = Math.hypot(t.clientX - touchStart.x, t.clientY - touchStart.y);
+                if (moved < 12) onTap(t.clientX, t.clientY);   // a tap, not a drag-to-rotate
+                touchStart = null;
+            }, { passive: true });
         }
 
         function showCityInfo(city) {
