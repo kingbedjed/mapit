@@ -230,6 +230,18 @@
             flex: 1;
         }
 
+        /* On phones, open the details box at the TOP (below the title bar):
+           the bottom is where the browser toolbar sits and would clip it. */
+        @media (max-width: 640px) {
+            #hover-info {
+                top: 68px; bottom: auto;
+                left: 12px; right: 12px;
+                max-height: 45vh; padding: 14px 16px;
+            }
+            #hover-info h2 { font-size: 20px; margin-bottom: 10px; }
+            #hover-info .label { min-width: 96px; }
+        }
+
         /* Loading */
         #loading {
             position: absolute;
