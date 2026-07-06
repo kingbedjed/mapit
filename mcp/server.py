@@ -49,6 +49,18 @@ def create_map(
         arc_color optionally colors them (hex).
     labels: True/False forces marker text labels on/off (default: shown for
         small maps of <= 15 points).
+
+    Examples:
+      # one pin
+      create_map(points=[{"lat": 35.99, "lon": -78.90, "label": "Durham HQ"}])
+      # a route, framed still for a screenshot
+      create_map(connect=True, auto_rotate=False, points=[
+          {"lat": 51.51, "lon": -0.13, "label": "London"},
+          {"lat": 48.85, "lon": 2.35,  "label": "Paris"}])
+      # groups by color, with hover details
+      create_map(points=[
+          {"lat": 37.77, "lon": -122.42, "label": "SF",  "color": "#6a9a72", "meta": {"type": "customer"}},
+          {"place": "Chicago, USA",       "label": "Chi", "color": "#c07b74", "meta": {"type": "supplier"}}])
     """
     url = build_map_url(
         points,

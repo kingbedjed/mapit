@@ -59,9 +59,69 @@ A ready-made builder is in the repo: `builders/mapit_url.py`
 ## MCP tool
 
 For agents that speak MCP, the same thing is exposed as a tool `create_map`
-(see `mcp/` in the repo): `create_map(points, title="", marker_color=None)`
-returns `{ "map_url": ... }`. It runs locally (stdio), builds the URL, and costs
-the server nothing.
+(see `mcp/` in the repo): `create_map(points, title="", marker_color=None,
+auto_rotate=True, connect=False, labels=None, arc_color="")` returns
+`{ "map_url": ... }`. It runs locally (stdio), builds the URL, and costs the
+server nothing.
+
+## Examples
+
+Copy the pattern that matches the task. (These are `create_map` calls; if you
+build the URL directly, the same fields go in the payload's `points`/`options`.)
+
+Drop a single pin ("where is X?"):
+```python
+create_map(points=[{"lat": 35.99, "lon": -78.90, "label": "Durham HQ"}])
+```
+
+Several sites, with details shown on hover:
+```python
+create_map(
+    title="US offices",
+    points=[
+        {"lat": 40.71, "lon": -74.01, "label": "New York", "meta": {"staff": 120, "opened": 2015}},
+        {"place": "Austin, Texas",     "label": "Austin",   "meta": {"staff": 45,  "opened": 2021}},
+    ],
+)
+```
+
+A route — points in order, connected by arcs, framed still for a clean shot:
+```python
+create_map(
+    title="Delivery route",
+    connect=True, arc_color="#6a9a72", auto_rotate=False,
+    points=[
+        {"lat": 51.51, "lon": -0.13,  "label": "London"},
+        {"lat": 48.85, "lon": 2.35,   "label": "Paris"},
+        {"lat": 52.52, "lon": 13.41,  "label": "Berlin"},
+    ],
+)
+```
+
+Two groups, distinguished by per-point color:
+```python
+create_map(
+    title="Supply network",
+    points=[
+        {"lat": 37.77, "lon": -122.42, "label": "SF — customer",  "color": "#6a9a72"},
+        {"lat": 40.71, "lon": -74.01,  "label": "NYC — supplier", "color": "#c07b74"},
+        {"lat": 41.88, "lon": -87.63,  "label": "Chicago — supplier", "color": "#c07b74"},
+    ],
+)
+```
+
+Screenshot-ready still map with labels always on:
+```python
+create_map(
+    title="APAC sites",
+    auto_rotate=False, labels=True,
+    points=[
+        {"lat": 35.68, "lon": 139.65, "label": "Tokyo"},
+        {"lat": 1.35,  "lon": 103.82, "label": "Singapore"},
+        {"lat": -33.87, "lon": 151.21, "label": "Sydney"},
+    ],
+)
+```
 
 ## Notes
 
