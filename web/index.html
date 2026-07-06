@@ -150,6 +150,20 @@
             z-index: 10;
         }
 
+        /* Collapse toggle — only shown on small screens. */
+        #info-toggle {
+            position: absolute; top: 12px; right: 12px;
+            background: transparent; border: none; color: #e7e9ec;
+            font-size: 20px; line-height: 1; cursor: pointer; display: none;
+        }
+        @media (max-width: 640px) {
+            #info { top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 12px 16px; }
+            #info h1 { margin: 0 32px 0 0; }     /* leave room for the toggle */
+            #info-toggle { display: block; }
+            #info-body { display: none; }        /* start collapsed so the map shows */
+            #info.open #info-body { display: block; margin-top: 10px; }
+        }
+
         #info h1 {
             font-size: 18px;
             margin-bottom: 10px;
@@ -328,18 +342,20 @@
 
         <!-- Info Panel -->
         <div id="info" style="display: none;">
+            <button id="info-toggle" onclick="toggleInfo()" aria-label="Show or hide details">▸</button>
             <h1>🗺️ City Map</h1>
-            <p><strong>Controls:</strong></p>
-            <p>• Drag: Rotate globe</p>
-            <p>• Scroll: Zoom in/out</p>
-            <p>• Hover: View city info</p>
-            <p>• Click: Select city</p>
-            <button class="button button-secondary" id="upload-new-btn" onclick="showUploadPanel()">
-                📂 Upload New CSV
-            </button>
-            <button class="button button-secondary" id="copy-link-btn" onclick="copyShareLink()">
-                🔗 Copy shareable link
-            </button>
+            <div id="info-body">
+                <p><strong>Controls:</strong></p>
+                <p>• Drag / swipe: rotate</p>
+                <p>• Pinch / scroll: zoom</p>
+                <p>• Tap a marker: details</p>
+                <button class="button button-secondary" id="upload-new-btn" onclick="showUploadPanel()">
+                    📂 Upload New CSV
+                </button>
+                <button class="button button-secondary" id="copy-link-btn" onclick="copyShareLink()">
+                    🔗 Copy shareable link
+                </button>
+            </div>
         </div>
 
         <!-- Hover Info -->
@@ -415,6 +431,12 @@
             uploadPanel.classList.add('hidden');
             infoPanel.style.display = 'block';
         }
+
+        // Expand/collapse the info panel (the toggle only shows on phones).
+        window.toggleInfo = function() {
+            const open = infoPanel.classList.toggle('open');
+            document.getElementById('info-toggle').textContent = open ? '▾' : '▸';
+        };
 
         function showLoading(title, status, progress = '') {
             loadingPanel.classList.add('visible');
