@@ -1012,7 +1012,11 @@
 
         function getMarkerSize(cityData) {
             if (cityData.size !== undefined && cityData.size !== '') {
-                return Number(cityData.size);  // this point's own size wins
+                // Per-point size wins, but clamp to sane globe-relative units —
+                // agents sometimes send "3" expecting pixels and get a marker
+                // three times the size of the planet.
+                const s = Number(cityData.size);
+                if (isFinite(s) && s > 0) return Math.min(0.08, Math.max(0.005, s));
             }
             if (cityData.category) {
                 const category = cityData.category.toLowerCase();
